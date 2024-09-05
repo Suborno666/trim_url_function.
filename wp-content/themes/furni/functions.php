@@ -306,16 +306,16 @@ function update_product_credential() {
 function e_commerce_user_login(){ 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
-        $user_login     = esc_attr($_POST["email"]);
+        $user_login_email     = esc_attr($_POST["email"]);
         $user_password  = esc_attr($_POST["password"]);
         
         
         $creds = array();
-        $creds['user_login'] = $user_login;
+        $creds['user_login'] = $user_login_email ;
         $creds['user_password'] = $user_password;
         $creds['remember'] = true;
 
-        do_action( 'wp_login', $user_login );
+        do_action( 'wp_login', $user_login_email);
 
         $user_signon = wp_signon( $creds, false );
         if ( is_wp_error($user_signon) ){
