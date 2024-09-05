@@ -41,10 +41,11 @@
 				<div class="collapse navbar-collapse" id="navbarsFurni">
 					<ul class="custom-navbar-nav navbar-nav ms-auto mb-2 mb-md-0">
 						<li class="nav-item" <?php (is_front_page())?'active':''?>>
-							<a class="nav-link" href="http://localhost/custom_post_type/">Home</a>
+							<a class="nav-link" href="http://localhost/furni/">Home</a>
 						</li>
 						<li class="nav-item" <?php (is_page(15))?'active':''?>>
-							 <a class="nav-link" href="http://localhost/custom_post_type/shops/">Shop</a></li>
+							 <a class="nav-link" href="http://localhost/furni/shops/">Shop</a></li>
+						<li><a class="nav-link" href="http://localhost/furni/user_login/">About us</a></li>
 						<li><a class="nav-link" href="about.html">About us</a></li>
 						<li><a class="nav-link" href="services.html">Services</a></li>
 						<li><a class="nav-link" href="blog.html">Blog</a></li>
@@ -89,7 +90,7 @@
 					<div class="row justify-content-between">
 						<div class="col-lg-5">
 							<div class="intro-excerpt">
-								<h1>Shop</h1>
+								<h1><?php the_title()?></h1>
 							</div>
 						</div>
 						<div class="col-lg-7">

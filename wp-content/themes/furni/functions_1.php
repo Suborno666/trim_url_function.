@@ -128,30 +128,8 @@ function prefix_save_meta_data($post_id){
 }
 add_action('save_post', 'prefix_save_meta_data');
 
-function create_updated_product_creds_table() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'updated_product_creds';
-    $charset_collate = $wpdb->get_charset_collate();
 
-    $sql = "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            post_id INT,
-            post_name varchar(255),
-            post_content LONGTEXT,
-            post_image varchar(255),
-            post_price INT,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
-        ) $charset_collate;";
-
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
-}
-
-add_action('init', 'create_updated_product_creds_table');
-
-
+// On Publish of Product
 function create_item($title, $content) { 
     $item_name = $title;
     $query = new WP_Query([
@@ -160,12 +138,12 @@ function create_item($title, $content) {
         'post_status' => 'publish',
         'posts_per_page' => 1,
     ]);
-    
+
     $check_item_exist = $query->have_posts() ? $query->posts[0] : null;
+
     if(empty($check_item_exist)){ 
         wp_insert_post(
-           
-            [
+            array(
                 'comment_status' => 'close',
                 'ping_status'    => 'close',
                 'post_author'    => 1,
@@ -174,40 +152,64 @@ function create_item($title, $content) {
                 'post_status'    => 'publish',
                 'post_type'      => 'item',
                 'post_content'   => $content
-            ]
+            )
         );
     } else {
         $updated_post = [
             'ID' =>  $check_item_exist->ID,
-            'title' =>  $item_name,
-            'post_content'   => $content,
+            'post_content'   => $content
         ];
         wp_update_post($updated_post);
     }
 }
 
-function wpse_save_product_callback($post_id) {
 
-    $post = get_post($post_id);
-    if ($post->post_type !== 'product' || $post->post_status !== 'publish') {
-        return;
-    }
 
-    $the_title = get_the_title($post_id);
-    $origin = get_post_meta($post_id, 'origin_key', true);
+function furni_create_table($table,$arr) {
     
-    $the_content = $post->post_content . "\n\nCountry of Origin: " . $origin;
-    $image = wp_get_attachment_image_src(get_post_thumbnail_id($post->ID), 'single-post-thumbnail');
-    $image_url = $image ? $image[0] : '';
-    
-    create_item($the_title, $the_content);
+    global $wpdb;
+    $table_name = $wpdb->prefix . $table;
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Create Table
+    $sql = "CREATE TABLE $table_name (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        post_id INT,
+        post_name varchar(255),
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta( $sql );
+
+    //Insert into table
+    $wpdb->insert( 
+        $table_name,$arr
+    );
 }
-add_action('woocommerce_process_product_meta','wpse_save_product_callback');
 
 
-//       v********************************************* Registering Button on Product Page ********************************************
+function wpse_save_post_callback( $post_id, $post, $update ) {
+    if ( $post->post_type === 'product' && $post->post_status === 'publish') {
 
-add_action('woocommerce_process_product_meta', 'wpse_save_product_callback', 20);
+        $the_title = get_the_title($post_id);
+        $origin = get_post_meta($post_id, 'origin_key', true);
+    
+        $data = [ 
+            'post_id' => $post_id, 
+            'post_name' => $the_title, 
+        ];
+        furni_create_table('updated_product_creds',$data);
+
+        $the_content = $post->post_content . "\n\nCountry of Origin: " . $origin;
+        create_item($the_title, $the_content);
+    }
+}
+add_action( 'save_post', 'wpse_save_post_callback', 10, 3 );
+
+
 add_action( 'manage_posts_extra_tablenav', 'admin_order_list_top_bar_button', 20, 1 );
 function admin_order_list_top_bar_button( $which ) {
     global $typenow;
@@ -222,140 +224,71 @@ function admin_order_list_top_bar_button( $which ) {
         <?php
     }
 }
+add_action('admin_enqueue_scripts', 'enqueue_admin_panel_script');
 
-// Add this function to enqueue your script and localize the admin-ajax.php URL and nonce
-function enqueue_custom_scripts() {
-    wp_enqueue_script('custom-admin-script', get_template_directory_uri() . '/update_list.js', array('jquery'), null, true);
-    wp_localize_script('custom-admin-script', 'adminAjax', [
-        'ajax_url' => admin_url('admin-ajax.php')
-    ]
-    );
+function enqueue_admin_panel_script($hook) {
+    global $typenow;
+
+    if ('edit.php' === $hook && 'product' === $typenow) {
+        wp_enqueue_script('admin-publish-script', get_stylesheet_directory_uri() . '/update_list.js', ['jquery'], '1.0', true);
+        wp_localize_script('admin-publish-script', 'adminAjax', array(
+            'ajax_url' => admin_url('admin-ajax.php')
+        ));
+    }
 }
-add_action('admin_enqueue_scripts', 'enqueue_custom_scripts');
 
+add_action('wp_ajax_publish_new_products','update_product_credential');
+add_action('wp_ajax_nopriv_publish_new_products','update_product_credential');
 
-add_action('wp_ajax_publish_new_products', 'update_product_credential');
-add_action('wp_ajax_nopriv_publish_new_products', 'update_product_credential');
+function update_product_credential(){
+    header('Content-Type: application/json');
 
-function update_product_credential() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'updated_product_creds';
-
+    $status = false;
+    
     $args = [
         'post_type' => 'product',
-        'posts_per_page' => -1,
-        'post_status' => 'publish',
     ];
 
-    $products = get_posts($args);
-    $inserted_count = 0;
-    $updated_count = 0;
+    $new_products = get_posts( $args );
 
-    // Check if products exist
-    if (empty($products)) {
-        $wpdb->query("TRUNCATE TABLE $table_name");
-        wp_send_json_success(['message' => 'Table Emptied']);
-        wp_die();
+    foreach ( $new_products as $product ) {
+        
+        $id = $product->ID;
+
+        global $wpdb;
+
+        $table = 'updated_product_creds';
+        $table_name = $wpdb->prefix . $table;
+        $results = $wpdb->get_results("SELECT * FROM $table_name");
+
+        if ($results) {
+            foreach ($results as $row):
+                if($row->post_id == $id){
+                    echo "Its a match!\n";
+                }
+            endforeach;
+        };
+        
+        $status = true;
     }
 
-    foreach ($products as $product) {
-        $post_id = $product->ID;
-
+    if($status){
         $data = [
-            'post_id' => $post_id,
-            'post_name' => $product->post_title,
-            'post_content' => $product->post_content,
-            'post_image' => get_the_post_thumbnail_url($post_id, 'full'),
-            'post_price' => get_post_meta($post_id,'_sale_price',true),
+            'success' => true,
+            'data' => [
+                'message' => 'Success'
+            ]
         ];
-
-        $exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM $table_name WHERE post_id = %d",
-            $post_id
-        ));
-
-        if (!$exists) {
-            // Insert new product
-            $result = $wpdb->insert($table_name, $data);
-            if ($result) {
-                $inserted_count++;
-            }
-        } else {
-            // Update existing product
-            $result = $wpdb->update($table_name, $data, ['post_id' => $post_id]);
-            if ($result !== false) {
-                $updated_count++;
-            }
-        }
-    }
-
-    // Send response based on counts
-    if ($inserted_count > 0 || $updated_count > 0) {
-        wp_send_json_success([
-            'message' => sprintf('%d new products published and %d products updated successfully.', $inserted_count, $updated_count),
-        ]);
     } else {
-        wp_send_json_error(['message' => 'No new products to publish or update.']);
+        $data = [
+            'success' => false,
+            'data' => [
+                'message' => 'No new products to publish.'
+            ]
+        ];
     }
+
+    echo json_encode($data);
+    wp_die();
 }
-
-
-
-//                  ********************************************* Login ********************************************
-
-function e_commerce_user_login(){ 
-    if ($_SERVER["REQUEST_METHOD"] == "POST") {
-
-        $user_login     = esc_attr($_POST["email"]);
-        $user_password  = esc_attr($_POST["password"]);
-        
-        
-        $creds = array();
-        $creds['user_login'] = $user_login;
-        $creds['user_password'] = $user_password;
-        $creds['remember'] = true;
-
-        do_action( 'wp_login', $user_login );
-
-        $user_signon = wp_signon( $creds, false );
-        if ( is_wp_error($user_signon) ){
-            echo json_encode(array('loggedin'=>false, 'redirect'=>'', 'message'=>__('Wrong username or password.')));
-        } else{
-            echo json_encode(array('loggedin'=>true,'message'=>__('SUCCESS.')));
-        }
-    }
-    die();
-}
-add_action( 'wp_ajax_nopriv_custom_login', 'e_commerce_user_login' );
-add_action( 'wp_ajax_custom_login', 'e_commerce_user_login' );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// function display_wp_post_queries() {
-//     global $wp_query;
-    
-//     echo "<pre>";
-//     print_r($wp_query);
-//     echo "</pre>";
-    
-    
-//     die();
-// }
-
-// add_action('template_redirect', 'display_wp_post_queries');
 ?>

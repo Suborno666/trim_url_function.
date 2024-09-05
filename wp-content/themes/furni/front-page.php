@@ -9,7 +9,7 @@
 		<div class="product-section">
 			<div class="container">
 				<div class="row">
-
+					
 					<!-- Start Column 1 -->
 					<div class="col-md-12 col-lg-3 mb-5 mb-lg-0">
 						<h2 class="mb-4 section-title">Crafted with excellent material.</h2>
