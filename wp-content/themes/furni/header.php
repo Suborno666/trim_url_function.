@@ -5,6 +5,10 @@
 * Template URI: https://untree.co/
 * License: https://creativecommons.org/licenses/by/3.0/
 */ -->
+
+<?php
+	global $current_user;
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -45,12 +49,38 @@
 						</li>
 						<li class="nav-item" <?php (is_page(15))?'active':''?>>
 							 <a class="nav-link" href="http://localhost/furni/shops/">Shop</a></li>
-						<li><a class="nav-link" href="http://localhost/furni/user_login/">About us</a></li>
+						<li><a class="nav-link" href="http://localhost/furni/user_login/">Login</a></li>
 						<li><a class="nav-link" href="about.html">About us</a></li>
 						<li><a class="nav-link" href="services.html">Services</a></li>
 						<li><a class="nav-link" href="blog.html">Blog</a></li>
 						<li><a class="nav-link" href="contact.html">Contact us</a></li>
 					</ul>
+					<div class="nav-item dropdown">
+						<a href="#" class="nav-link dropdown-toggle" style="color:white" data-bs-toggle="dropdown">
+							<i class="fa fa-user fa-2x" style="color:white"></i>
+						</a>
+
+						<div class="dropdown-menu m-0 bg-light rounded-0" >
+							<?php
+							// $current_user = null;
+							if(!is_user_logged_in()){
+								$current_user = wp_get_current_user();
+							?>
+								<a href="<?php echo get_the_permalink(253);?>" class="dropdown-item">Register</a>
+							<?php } else {?>
+								<a class="dropdown-item"><?php echo $current_user->display_name;?></a>
+								<a href="<?php echo get_the_permalink(255);?>" class="dropdown-item"><?php echo "Open Chatroom"?></a>
+								<a href="<?php echo get_the_permalink(31);?>" class="dropdown-item">Update User</a>
+							<?php }?>
+							<?php
+							if ( is_user_logged_in() ) {
+							?>
+								<a href="<?php echo wp_logout_url( home_url()); ?>" class="dropdown-item">Logout</a>
+							<?php } else {?>
+								<a href="<?php echo get_the_permalink(183);?>" class="dropdown-item">Login</a>
+							<?php } ?>
+						</div>
+					</div>
 
 					<ul class="custom-navbar-cta navbar-nav mb-2 mb-md-0 ms-5">
 						<li><a class="nav-link" href="#"><img src="images/user.svg"></a></li>

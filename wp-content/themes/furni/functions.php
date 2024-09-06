@@ -10,12 +10,14 @@ add_action('after_setup_theme', 'my_theme_setup');
 function furni_enqueue_scripts() {
 
     // CSS
+    wp_enqueue_script('js-google-jquery',"https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js",[],'3.6.4',false);
     wp_enqueue_style( 'css-bootstrap', get_template_directory_uri(). '/assets/css/bootstrap.min.css', [], '', 'all' );
     wp_enqueue_style( 'css-font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css', [], '', 'all' );
     wp_enqueue_style( 'css-slider', get_template_directory_uri(). '/assets/css/tiny-slider.css', [], '', 'all' );
     wp_enqueue_style( 'css-style', get_template_directory_uri(). '/assets/css/style.css', [], '', 'all' );
 
     // JS
+    wp_enqueue_script('js-google-jquery',"https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js",[],'3.6.4',true);
     wp_enqueue_script( 'js-bootstrap-bundle', get_template_directory_uri(). '/assets/js/bootstrap.bundle.min.js', [], '', true );
     wp_enqueue_script( 'js-tiny-slider', get_template_directory_uri(). '/assets/js/tiny-slider.js', [], '', true );
     wp_enqueue_script( 'js-custom', get_template_directory_uri(). '/assets/js/custom.js', [], '', true );
@@ -205,7 +207,7 @@ function wpse_save_product_callback($post_id) {
 add_action('woocommerce_process_product_meta','wpse_save_product_callback');
 
 
-//       v********************************************* Registering Button on Product Page ********************************************
+//       ********************************************* Registering Button on Product Page ********************************************
 
 add_action('woocommerce_process_product_meta', 'wpse_save_product_callback', 20);
 add_action( 'manage_posts_extra_tablenav', 'admin_order_list_top_bar_button', 20, 1 );
@@ -232,6 +234,8 @@ function enqueue_custom_scripts() {
     );
 }
 add_action('admin_enqueue_scripts', 'enqueue_custom_scripts');
+
+
 
 
 add_action('wp_ajax_publish_new_products', 'update_product_credential');
@@ -302,59 +306,122 @@ function update_product_credential() {
 
 
 //                  ********************************************* Login ********************************************
+function furni_user_login() {
 
-function e_commerce_user_login(){ 
+    check_ajax_referer('custom_login_nonce', 'custom_login_nonce_field');
+    $user_email    = sanitize_email($_POST["user_email"]);
+    $user_password = $_POST["user_password"];
+    
+    $creds = [
+        'user_login'    => $user_email,
+        'user_password' => $user_password,
+        'remember'      => true
+    ];
+
+    $user = wp_signon($creds, false);
+    
+    if (is_wp_error($user)) {
+        wp_send_json(array('loggedin' => false, 'message' => __('Wrong username or password.')));
+    } else {
+        wp_set_current_user($user->ID);
+        wp_set_auth_cookie($user->ID);
+        do_action('wp_login', $user->user_login, $user);
+        wp_send_json(array('loggedin' => true, 'message' => __('Login successful.')));
+    }
+    die();
+}
+add_action('wp_ajax_nopriv_custom_login', 'furni_user_login');
+add_action('wp_ajax_custom_login', 'furni_user_login');
+
+
+//                  ***************************************** Register User *****************************************
+
+
+function furni_user_create(){ 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        $email = isset($_POST['email']) ? $_POST['email'] : '';
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
 
-        $user_login_email     = esc_attr($_POST["email"]);
-        $user_password  = esc_attr($_POST["password"]);
-        
-        
-        $creds = array();
-        $creds['user_login'] = $user_login_email ;
-        $creds['user_password'] = $user_password;
-        $creds['remember'] = true;
-
-        do_action( 'wp_login', $user_login_email);
-
-        $user_signon = wp_signon( $creds, false );
-        if ( is_wp_error($user_signon) ){
-            echo json_encode(array('loggedin'=>false, 'redirect'=>'', 'message'=>__('Wrong username or password.')));
-        } else{
-            echo json_encode(array('loggedin'=>true,'message'=>__('SUCCESS.')));
+        $user_id = wp_create_user($email, $password);
+        if (is_wp_error($user_id)) {
+            echo json_encode(['data' => 'Error in field']);
+        } else {
+            echo json_encode(['data' => 'User created successfully']);
         }
     }
     die();
 }
-add_action( 'wp_ajax_nopriv_custom_login', 'e_commerce_user_login' );
-add_action( 'wp_ajax_custom_login', 'e_commerce_user_login' );
+add_action('wp_ajax_nopriv_register_user', 'furni_user_create');
+add_action('wp_ajax_register_user', 'furni_user_create');
+
+
+//                  ***************************************** User Redirect *****************************************
 
 
 
+function redirect_user_to_login_page(){
 
+    if(!is_user_logged_in()&&is_page(255)):
+        wp_redirect('http://localhost/furni/register-new-user/');
+    endif;
+}
+add_action('template_redirect','redirect_user_to_login_page');
 
+//                  ****************************************  Chat Table  *****************************************
 
+function create_chart_table() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'chat_messages';
+    $charset_collate = $wpdb->get_charset_collate();
 
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id INT(11) NOT NULL AUTO_INCREMENT,
+        sent_by VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
 
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+}
 
+create_chart_table();
 
+//                  ****************************************  Display Chart  *****************************************    
 
+function ajax_display_data(){
 
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'chat_messages';
+    $message = $_POST['textarea'];  // User Message
 
+    $current_user = wp_get_current_user();
+    $user_email = $current_user->user_email; // Current user's email
 
-
-
-
+    $data = 
+    [
+        'sent_by'=>$user_email,
+        'message'=>$message
+    ];
+    $message = $wpdb->insert(
+        $table_name,
+        $data
+    );
+}
+add_action('wp_ajax_send_chat_message','ajax_display_data');
+add_action('wp_ajax_nopriv_send_chat_message','ajax_display_data');
 
 // function display_wp_post_queries() {
+
 //     global $wp_query;
-    
+
 //     echo "<pre>";
 //     print_r($wp_query);
 //     echo "</pre>";
-    
-    
+
 //     die();
+
 // }
 
 // add_action('template_redirect', 'display_wp_post_queries');
