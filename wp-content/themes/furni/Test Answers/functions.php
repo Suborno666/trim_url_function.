@@ -67,50 +67,10 @@ function furni_custom_post_type_and_taxonomy(){
         'query_var' => true,
         'rewrite' => ['slug' => 'item-categories'],
     ]);
-
-
 }
 add_action('init','furni_custom_post_type_and_taxonomy');
 
 
-
-
-
-// Creating Virtual Nav Menu
-
-add_action('init', 'custom_menu');
-function custom_menu(){
-
-    register_nav_menu('primary',_('Header Menu') );
-
-}
-
-class AWP_MENU_WALKER extends Walker_Nav_Menu {
-    function start_el(&$output, $item, $depth = 0, $args = null, $id = 0) {
-        $output .= "<li>";
-        
-        $atts = array();
-        $atts['title']  = !empty($item->attr_title) ? $item->attr_title : '';
-        $atts['target'] = !empty($item->target)     ? $item->target     : '';
-        $atts['rel']    = !empty($item->xfn)        ? $item->xfn        : '';
-        $atts['href']   = !empty($item->url)        ? $item->url        : '';
-        $atts['class']  = 'nav-link';
-
-        $attributes = '';
-        foreach ($atts as $attr => $value) {
-            if (!empty($value)) {
-                $value = ('href' === $attr) ? esc_url($value) : esc_attr($value);
-                $attributes .= ' ' . $attr . '="' . $value . '"';
-            }
-        }
-
-        $item_output = '<a' . $attributes . '>';
-        $item_output .= apply_filters('the_title', $item->title, $item->ID);
-        $item_output .= '</a>';
-
-        $output .= apply_filters('walker_nav_menu_start_el', $item_output, $item, $depth, $args);
-    }
-}
 
 /**
  * How to trim URL?

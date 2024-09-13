@@ -17,6 +17,10 @@
             </h3>
             <form id="form" method="post" class="mx-auto p-2 grid gap-3 row gy-1" style="width: 450px;margin-top: 54px;">
                 <div class="form-group">
+                    <label for="username">Set your username</label>
+                    <input type="text" name="username" class="form-control" id="username" placeholder="Username">
+                </div>
+                <div class="form-group">
                     <label for="exampleInputEmail1">Email address</label>
                     <input type="email" name="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email">
                     <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
@@ -27,6 +31,7 @@
                 </div>
                 <p id="response"></p>
                 <button type="submit" name="submit" class="btn btn-primary" value="Register">Register</button>
+                <a class="link-offset-2 link-offset-3-hover link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="<?php the_permalink(183)?>">Sign In</a>
             </form>
         </div>
     </div>  

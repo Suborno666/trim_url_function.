@@ -17,9 +17,8 @@
             <?php wp_nonce_field('custom_login_nonce', 'custom_login_nonce_field'); ?>
             <input type="hidden" name="action" value="custom_login">
             <div class="form-group">
-                <label for="exampleInputEmail1">Email address</label>
-                <input type="email" name="user_email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email">
-                <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+                <label for="username">Type your username</label>
+                <input type="text" name="username" class="form-control" id="username" placeholder="Username">
             </div>
             <div class="form-group">
                 <label for="exampleInputPassword1">Password</label>
