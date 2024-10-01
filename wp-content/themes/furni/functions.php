@@ -76,6 +76,10 @@ add_action('init','furni_custom_post_type_and_taxonomy');
 
 
 
+// flush_rewrite_rules();
+
+
+
 // Creating Virtual Nav Menu
 
 add_action('init', 'custom_menu');
@@ -495,4 +499,81 @@ add_action('wp_ajax_nopriv_fetch_chat_messages', 'ajax_fetch_messages');
 // }
 
 // add_action('template_redirect', 'display_wp_post_queries');
-?>
+// Ensure this code is at the very top of your functions.php file
+if (!defined('ABSPATH')) exit; // Exit if accessed directly
+
+// Add custom rewrite rule for the new login URL
+add_action('init', 'custom_login_rewrite_rule', 10, 0);
+function custom_login_rewrite_rule() {
+    add_rewrite_rule('^admin_dashboard/?$', 'wp-login.php', 'top');
+}
+
+// Redirect wp-admin to custom login page
+add_action('init', 'redirect_wp_admin', 1);
+function redirect_wp_admin() {
+    if (strpos($_SERVER['REQUEST_URI'], 'wp-admin') !== false && !is_admin() && !current_user_can('manage_options')) {
+        wp_safe_redirect(home_url('admin_dashboard'));
+        exit();
+    }
+}
+
+// Change login URL
+add_filter('login_url', 'custom_login_url', 10, 3);
+function custom_login_url($login_url, $redirect, $force_reauth) {
+    return home_url('admin_dashboard', 'login');
+}
+
+// Handle custom login page
+add_action('parse_request', 'handle_custom_login_page');
+function handle_custom_login_page($wp) {
+    if (isset($wp->request) && $wp->request == 'admin_dashboard') {
+        require_once(ABSPATH . 'wp-login.php');
+        exit;
+    }
+}
+
+// Pre-define variables for wp-login.php
+add_action('login_init', 'predefined_login_variables');
+function predefined_login_variables() {
+    global $user_login, $error;
+    $user_login = isset($_POST['log']) ? wp_unslash($_POST['log']) : '';
+    $error = '';
+}
+
+// Remove "Powered by WordPress" text
+add_action('login_headerurl', '__return_empty_string');
+
+// Customize login error messages
+add_filter('login_errors', 'custom_login_error_messages');
+function custom_login_error_messages($error) {
+    global $errors;
+    if (is_wp_error($errors) && $errors->get_error_code()) {
+        $error = 'Invalid username or password. Please try again.';
+    }
+    return $error;
+}
+
+// Flush rewrite rules on theme switch
+add_action('after_switch_theme', 'flush_rewrite_rules');
+
+// Debug logging function
+if (!function_exists('debug_log')) {
+    function debug_log($message) {
+        if (WP_DEBUG === true) {
+            if (is_array($message) || is_object($message)) {
+                error_log(print_r($message, true));
+            } else {
+                error_log($message);
+            }
+        }
+    }
+}
+
+// Test rewrite rules
+add_action('init', 'test_rewrite_rules', 999);
+function test_rewrite_rules() {
+    global $wp_rewrite;
+    debug_log($wp_rewrite->rules);
+}
+
+
